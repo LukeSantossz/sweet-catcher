@@ -72,6 +72,9 @@ cd backend
 uv run pytest
 ```
 
+Tests run against an auto-created `sweet_catcher_test` database, isolated from the app
+database. The test database is created on first run and reused on subsequent runs.
+
 ## Project Structure
 
 ```
