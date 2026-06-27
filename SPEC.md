@@ -14,8 +14,13 @@ preferences) — is validated by Pydantic v2 DTOs and stored as one JSONB
 document per version in PostgreSQL, through async SQLAlchemy 2.x (psycopg3 driver) with
 Alembic migrations. A `MasterProfileManager` service exposes create-version (with no-op
 dedupe), get-current, list/get version, and restore, and a FastAPI router under `/profile`
-provides manual structured entry and read access. Rich-document import (PDF, DOCX,
-Markdown) is deferred to a later slice that depends on the not-yet-built LLM provider
+provides manual structured entry and read access. A repository guidance document
+(`docs/resume-standard.md`, the CV Camaleão standard) records the canonical resume
+sections, the binding anti-fabrication rules, and the formatting standard; the master
+profile is that standard's "CV Master" (the complete internal reference from which tailored
+resumes are built), its schema carries a curated `key_achievements` list per the standard,
+and the later resume generator is bound by the standard's rules. Rich-document import (PDF,
+DOCX, Markdown) is deferred to a later slice that depends on the not-yet-built LLM provider
 abstraction.
 
 ## Alternatives Considered
@@ -48,6 +53,9 @@ abstraction.
     cross-field validation
     (`end_date >= start_date`, `is_current` consistent with `end_date`); only
     `basics.full_name` required, every other field optional or an empty list.
+    `MasterProfileData` also carries a top-level `key_achievements` list of curated
+    headline achievements (per the resume standard), from which the resume generator later
+    selects the top three.
   - `app/profile/models.py`: SQLAlchemy ORM `MasterProfile` and `MasterProfileVersion`
     (UUID primary keys, `version_number`, `created_at`, `note`, `data` JSONB, unique
     `(profile_id, version_number)`).
@@ -70,6 +78,10 @@ abstraction.
   - ADRs promoted at the Gate: `0005` (async SQLAlchemy 2.x session pattern plus psycopg3
     single driver) and `0006` (master-profile versioning: immutable JSONB snapshots plus
     monotonic version number).
+  - `docs/resume-standard.md`: the CV Camaleão resume standard (English translation)
+    defining the canonical resume sections, the binding anti-fabrication rules, the
+    CV Master versus submitted-resume model, and the formatting/ATS rules; the master
+    profile aligns to it as the CV Master.
   - README: a short note on the profile API and the migrations command, in the
     `github.md` section order.
 - Does NOT include:
@@ -79,6 +91,9 @@ abstraction.
   - Authentication, authorization, or per-user scoping (open question #7).
   - Diff endpoints between profile versions, and the master-versus-tailored resume diff
     (FR #17), which belongs to the resume phase.
+  - Tailored-resume generation, rendering, or PDF export, and any programmatic enforcement
+    of the resume standard's content rules; this slice adds the standard document and the
+    `key_achievements` field, but produces no resume (resume phase).
   - Search-criteria configuration (FR #3) beyond the profile-side `job_preferences`
     object; discovery, analysis, scoring, resume generation, applications, dashboard,
     analytics, notifications, exports, and attachments.
@@ -95,6 +110,8 @@ abstraction.
   `end_date` fails validation, and one with `is_current` false and a null `end_date` fails
   validation.
 - schema_ignores_unknown_fields: unknown keys in the input are ignored, not rejected.
+- schema_accepts_key_achievements: `MasterProfileData` accepts a `key_achievements` list,
+  and the values round-trip unchanged through a saved version snapshot.
 - service_first_save_creates_version_one: `create_version` on an empty profile returns
   `version_number` equal to 1.
 - service_distinct_save_increments_version: a second `create_version` with different data
@@ -122,6 +139,9 @@ abstraction.
 - migration_creates_tables: `alembic upgrade head` on an empty database creates
   `master_profile` and `master_profile_version` with the unique
   `(profile_id, version_number)` constraint.
+- resume_standard_present: `docs/resume-standard.md` exists, is written in English, and
+  defines the canonical resume sections, the binding anti-fabrication rules, and the
+  CV Master versus submitted-resume model.
 - quality_gates_pass: `ruff check`, `ruff format --check`, `pyright` (strict), and `pytest`
   all pass in `backend/`.
 
