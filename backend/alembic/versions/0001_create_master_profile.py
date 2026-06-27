@@ -53,17 +53,8 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("profile_id", "version_number"),
     )
-    op.create_index(
-        op.f("ix_master_profile_version_profile_id"),
-        "master_profile_version",
-        ["profile_id"],
-    )
 
 
 def downgrade() -> None:
-    op.drop_index(
-        op.f("ix_master_profile_version_profile_id"),
-        table_name="master_profile_version",
-    )
     op.drop_table("master_profile_version")
     op.drop_table("master_profile")
