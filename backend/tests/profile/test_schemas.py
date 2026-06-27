@@ -93,6 +93,13 @@ def test_education_accepts_valid_dates() -> None:
     assert edu.institution == "MIT"
 
 
+def test_education_is_current_forbids_end_date() -> None:
+    with pytest.raises(ValidationError):
+        Education.model_validate(
+            {"institution": "MIT", "is_current": True, "end_date": "2024-06-01"}
+        )
+
+
 def test_certification_rejects_inverted_dates() -> None:
     with pytest.raises(ValidationError):
         Certification.model_validate(
