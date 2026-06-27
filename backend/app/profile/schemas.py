@@ -111,6 +111,8 @@ class Education(_ProfileModel):
 
     @model_validator(mode="after")
     def _check_dates(self) -> Self:
+        if self.is_current and self.end_date is not None:
+            raise ValueError("end_date must be empty when is_current is true")
         if (
             self.start_date is not None
             and self.end_date is not None
