@@ -154,6 +154,9 @@ abstraction.
 - Versions: Python 3.12; SQLAlchemy 2.x, Alembic, psycopg3, and pytest-asyncio pinned in
   `pyproject.toml` and `uv.lock`; PostgreSQL via the pinned pgvector image. CI runs the
   same checks against an ephemeral PostgreSQL service on `ubuntu-latest`.
+- Tests run against an auto-created `sweet_catcher_test` database (derived from
+  `DATABASE_URL`), isolated from the app database. The test database is created on first
+  run and reused on subsequent runs.
 - No randomness is involved; tests are deterministic.
 
 ## Risks and Assumptions
