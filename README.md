@@ -15,7 +15,7 @@ A REST API backend (modular monolith) plus a reserved frontend, run locally via 
 
 - Language: Python 3.12
 - Framework: FastAPI
-- Data layer: PostgreSQL (pgvector), Redis
+- Data layer: PostgreSQL (pgvector), Redis; SQLAlchemy 2.x, Alembic
 - Tooling: uv, ruff, pyright, pytest
 - CI: GitHub Actions
 
@@ -27,6 +27,8 @@ A REST API backend (modular monolith) plus a reserved frontend, run locally via 
 | Backend and persistence stack | [docs/adr/0002-backend-and-persistence-stack.md](docs/adr/0002-backend-and-persistence-stack.md) |
 | Async processing and scheduling | [docs/adr/0003-async-processing-dramatiq-apscheduler.md](docs/adr/0003-async-processing-dramatiq-apscheduler.md) |
 | LLM provider abstraction | [docs/adr/0004-llm-provider-abstraction.md](docs/adr/0004-llm-provider-abstraction.md) |
+| Async persistence (SQLAlchemy + psycopg3) | [docs/adr/0005-async-persistence-sqlalchemy-psycopg3.md](docs/adr/0005-async-persistence-sqlalchemy-psycopg3.md) |
+| Master-profile versioning (JSONB snapshots) | [docs/adr/0006-master-profile-versioning-jsonb-snapshots.md](docs/adr/0006-master-profile-versioning-jsonb-snapshots.md) |
 
 ## Getting Started
 
@@ -50,6 +52,19 @@ curl http://localhost:8000/health   # -> {"status":"ok"}
 docker compose down
 ```
 
+Apply migrations and use the profile API:
+
+```bash
+cd backend
+uv run alembic upgrade head
+# Set the master profile (creates a new version):
+curl -X PUT http://localhost:8000/profile \
+  -H 'content-type: application/json' \
+  -d '{"basics": {"full_name": "Ada Lovelace"}}'
+curl http://localhost:8000/profile            # current version
+curl http://localhost:8000/profile/versions   # version history
+```
+
 ### Tests
 
 ```bash
@@ -69,7 +84,7 @@ SPEC.md     Current change specification
 
 ## Project Status
 
-In development — Phase 0 (project scaffolding) complete: runnable health-checked skeleton with CI.
+In development — Phase 0 (project scaffolding) complete; Phase 1 (master profile API) in progress. The resume standard is defined in [docs/resume-standard.md](docs/resume-standard.md).
 
 ## Known Issues & Limitations
 
