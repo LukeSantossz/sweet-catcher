@@ -5,7 +5,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     app_env: str = "development"
-    database_url: str = "postgresql://app:app@localhost:5432/sweet_catcher"
+    database_url: str = "postgresql+psycopg://app:app@localhost:5432/sweet_catcher"
     redis_url: str = "redis://localhost:6379/0"
 
 

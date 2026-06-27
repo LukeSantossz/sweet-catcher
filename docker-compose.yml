@@ -5,7 +5,7 @@ services:
       - "8000:8000"
     environment:
       APP_ENV: development
-      DATABASE_URL: postgresql://app:app@postgres:5432/sweet_catcher
+      DATABASE_URL: postgresql+psycopg://app:app@postgres:5432/sweet_catcher
       REDIS_URL: redis://redis:6379/0
     depends_on:
       - postgres
