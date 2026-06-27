@@ -36,7 +36,7 @@ A personal, AI-assisted application copilot that discovers, triages, explains, p
 - Basic dashboard, job filters, and basic market analytics.
 - Tasks, follow-ups, and notifications (dashboard, with optional email).
 - Minimal structured logging and observability.
-- Local execution via Docker Compose using open-source models.
+- Local execution via Docker Compose, with a pluggable LLM provider supporting both a local runtime and hosted open-source-model providers (e.g., Groq).
 
 ### Out of Scope
 
@@ -133,7 +133,7 @@ Explicit non-goals (the system must never do these, in any version):
 ## Technical Constraints
 
 1. **Framework.Standard is mandatory and binding.** All development follows the standards in `.standards/` (the standards submodule), which supersede any stack, directory-structure, naming, or style preference expressed in this PRD. Where this PRD and the standard conflict, the functional requirements here are preserved and the implementation is adapted to the standard, with the conflict documented.
-2. **Open-source, local or self-hosted models only.** No mandatory dependency on paid LLM APIs; model serving runs on a local runtime (the exact runtime is an open question).
+2. **Open-source model weights, served through a pluggable provider abstraction.** Two interchangeable backends are supported: a local runtime (e.g., Ollama or vLLM) and hosted providers that serve open-source models (e.g., Groq). No mandatory dependency on any single provider or on proprietary/closed-model APIs, and the system must always remain fully runnable in local-only mode.
 3. **Local execution via Docker Compose is required.**
 4. **A relational database is the system of record.**
 5. **Human approval is mandatory before any application is submitted;** the system never auto-submits.
@@ -150,7 +150,7 @@ Each item is to be resolved by the **project owner/developer** at the SPEC stage
 1. Backend framework — FastAPI or an alternative?
 2. Frontend — Next.js for a fuller product, or a simpler MVP option such as Streamlit?
 3. Background workers — Dramatiq, Celery, or another?
-4. Local inference runtime — Ollama or vLLM for the initial environment?
+4. LLM backends for the initial setup — which local runtime (Ollama or vLLM) and which hosted provider(s) (e.g., Groq), both behind one provider abstraction?
 5. Vector store — pgvector (integrated in PostgreSQL) or a dedicated store such as Qdrant?
 6. PDF export — WeasyPrint, Playwright, or another library?
 7. Authentication — simple local auth, or no auth in V1?
