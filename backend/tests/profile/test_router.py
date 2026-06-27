@@ -52,6 +52,15 @@ async def test_get_version_not_found(client: AsyncClient) -> None:
     assert response.status_code == 404
 
 
+async def test_get_version_returns_correct_version(client: AsyncClient) -> None:
+    await client.put("/profile", json=ADA)
+    response = await client.get("/profile/versions/1")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["version_number"] == 1
+    assert body["data"]["basics"]["full_name"] == "Ada"
+
+
 async def test_invalid_body_returns_422(client: AsyncClient) -> None:
     response = await client.put("/profile", json={"basics": {}})
     assert response.status_code == 422
