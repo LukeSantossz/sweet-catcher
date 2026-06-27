@@ -12,9 +12,9 @@ dependencies = [
 [dependency-groups]
 dev = [
     "pytest>=8.3",
-    "httpx>=0.27",
     "ruff==0.15.20",
     "pyright>=1.1.380",
+    # starlette's TestClient requires httpx2 (plain httpx is deprecated for it)
     "httpx2>=2.5.0",
 ]
 
