@@ -49,10 +49,9 @@ uv sync
 ```bash
 docker compose up -d --build
 curl http://localhost:8000/health   # -> {"status":"ok"}
-docker compose down
 ```
 
-Apply migrations and use the profile API:
+With the stack still running, apply migrations and use the profile API:
 
 ```bash
 cd backend
@@ -63,6 +62,12 @@ curl -X PUT http://localhost:8000/profile \
   -d '{"basics": {"full_name": "Ada Lovelace"}}'
 curl http://localhost:8000/profile            # current version
 curl http://localhost:8000/profile/versions   # version history
+```
+
+Stop the stack when done:
+
+```bash
+docker compose down
 ```
 
 ### Tests
