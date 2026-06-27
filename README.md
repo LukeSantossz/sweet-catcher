@@ -23,10 +23,10 @@ A REST API backend (modular monolith) plus a reserved frontend, run locally via 
 
 | Decision | Record |
 |----------|--------|
-| Modular monolith with async workers | `docs/adr/0001-modular-monolith-architecture.md` |
-| Backend and persistence stack | `docs/adr/0002-backend-and-persistence-stack.md` |
-| Async processing and scheduling | `docs/adr/0003-async-processing-dramatiq-apscheduler.md` |
-| LLM provider abstraction | `docs/adr/0004-llm-provider-abstraction.md` |
+| Modular monolith with async workers | [docs/adr/0001-modular-monolith-architecture.md](docs/adr/0001-modular-monolith-architecture.md) |
+| Backend and persistence stack | [docs/adr/0002-backend-and-persistence-stack.md](docs/adr/0002-backend-and-persistence-stack.md) |
+| Async processing and scheduling | [docs/adr/0003-async-processing-dramatiq-apscheduler.md](docs/adr/0003-async-processing-dramatiq-apscheduler.md) |
+| LLM provider abstraction | [docs/adr/0004-llm-provider-abstraction.md](docs/adr/0004-llm-provider-abstraction.md) |
 
 ## Getting Started
 
