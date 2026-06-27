@@ -55,11 +55,7 @@ async def put_profile(
 async def list_versions(
     manager: MasterProfileManager = Depends(get_manager),  # noqa: B008
 ) -> list[ProfileVersionMeta]:
-    versions = await manager.list_versions()
-    return [
-        ProfileVersionMeta(version_number=v.version_number, created_at=v.created_at, note=v.note)
-        for v in versions
-    ]
+    return await manager.list_versions()
 
 
 @router.get("/versions/{version_number}", response_model=ProfileVersionData)
