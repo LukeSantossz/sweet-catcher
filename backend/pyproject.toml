@@ -19,6 +19,7 @@ dev = [
     "pyright>=1.1.380",
     # starlette's TestClient requires httpx2 (plain httpx is deprecated for it)
     "httpx2>=2.5.0",
+    "pytest-asyncio>=1.4.0",
 ]
 
 [tool.uv]
@@ -39,3 +40,4 @@ pythonVersion = "3.12"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+asyncio_mode = "auto"
