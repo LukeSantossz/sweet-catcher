@@ -5,9 +5,7 @@ import pytest
 from app.config import Settings
 
 
-def test_settings_defaults_to_development(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_settings_defaults_to_development(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.chdir(tmp_path)
     monkeypatch.delenv("APP_ENV", raising=False)
     settings = Settings()
