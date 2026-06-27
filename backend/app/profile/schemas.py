@@ -81,6 +81,16 @@ class Project(_ProfileModel):
     highlights: list[str] = Field(default_factory=list)
     technologies: list[str] = Field(default_factory=list)
 
+    @model_validator(mode="after")
+    def _check_dates(self) -> Self:
+        if (
+            self.start_date is not None
+            and self.end_date is not None
+            and self.end_date < self.start_date
+        ):
+            raise ValueError("end_date must not be earlier than start_date")
+        return self
+
 
 class TechnicalSkill(_ProfileModel):
     name: str
@@ -99,6 +109,16 @@ class Education(_ProfileModel):
     location: str | None = None
     description: str | None = None
 
+    @model_validator(mode="after")
+    def _check_dates(self) -> Self:
+        if (
+            self.start_date is not None
+            and self.end_date is not None
+            and self.end_date < self.start_date
+        ):
+            raise ValueError("end_date must not be earlier than start_date")
+        return self
+
 
 class Certification(_ProfileModel):
     name: str
@@ -107,6 +127,16 @@ class Certification(_ProfileModel):
     expiration_date: date | None = None
     credential_id: str | None = None
     url: HttpUrl | None = None
+
+    @model_validator(mode="after")
+    def _check_dates(self) -> Self:
+        if (
+            self.issue_date is not None
+            and self.expiration_date is not None
+            and self.expiration_date < self.issue_date
+        ):
+            raise ValueError("expiration_date must not be earlier than issue_date")
+        return self
 
 
 class Language(_ProfileModel):
