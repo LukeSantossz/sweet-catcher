@@ -88,7 +88,7 @@ In development — Phase 0 (project scaffolding) complete; Phase 1 (master profi
 
 ## Known Issues & Limitations
 
-- No business features yet; Phase 0 delivers only the skeleton and a health endpoint.
+- The versioned master-profile API is live (Phase 1). Not yet implemented: document import/parsing, authentication, multi-profile support, and tailored-resume generation.
 - The worker, scheduler, and LLM client are deferred to later phases.
 
 ## License
