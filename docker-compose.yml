@@ -1,0 +1,31 @@
+services:
+  api:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    environment:
+      APP_ENV: development
+      DATABASE_URL: postgresql://app:app@postgres:5432/sweet_catcher
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      - postgres
+      - redis
+
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+      POSTGRES_DB: sweet_catcher
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+volumes:
+  postgres_data:
