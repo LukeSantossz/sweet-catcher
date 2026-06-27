@@ -23,6 +23,7 @@ Establish a monorepo modular monolith. A Python 3.12 + FastAPI backend lives und
   - `.pre-commit-config.yaml` (ruff plus standard hooks), `.gitignore`, and `.gitattributes` (normalize line endings to LF).
   - `README.md` following the `github.md` README section order, with runnable Getting Started commands.
   - `docs/adr/0001`–`0004`: the foundational architecture and stack decisions.
+  - `.githooks/pre-push`, `scripts/codex-review.sh`, and `AGENTS.md`: the Codex R2 cross-provider review pre-push gate (per `.standards/docs/standards/codex_review.md`), activated locally with `git config core.hooksPath .githooks`.
 - Does NOT include:
   - Any business domain (jobs, applications, resumes, profiles, analytics, automations).
   - Source connectors or scraping; the LLM client and provider abstraction; embeddings or any pgvector usage.
