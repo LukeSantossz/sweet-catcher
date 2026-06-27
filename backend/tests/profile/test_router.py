@@ -69,3 +69,11 @@ async def test_restore_creates_new_version(client: AsyncClient) -> None:
 async def test_restore_missing_returns_404(client: AsyncClient) -> None:
     response = await client.post("/profile/versions/99/restore")
     assert response.status_code == 404
+
+
+async def test_restore_of_current_version_creates_new_version(client: AsyncClient) -> None:
+    """Restoring version 1 when it is already the latest must create version 2 (no dedupe)."""
+    await client.put("/profile", json=ADA)
+    response = await client.post("/profile/versions/1/restore")
+    assert response.status_code == 201
+    assert response.json()["version_number"] == 2
