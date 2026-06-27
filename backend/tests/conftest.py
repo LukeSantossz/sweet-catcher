@@ -7,6 +7,8 @@ import pytest
 import pytest_asyncio
 from alembic.config import Config
 from httpx2 import ASGITransport, AsyncClient
+from sqlalchemy import create_engine, make_url, text
+from sqlalchemy.engine import URL
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
 
 from alembic import command
@@ -21,15 +23,34 @@ ALEMBIC_INI = BACKEND_DIR / "alembic.ini"
 if sys.platform == "win32":
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())  # pyright: ignore[reportDeprecated]
 
+_base_url: URL = make_url(get_settings().database_url)
+_db_name: str = _base_url.database or "sweet_catcher"
+TEST_DATABASE_URL: str = _base_url.set(database=f"{_db_name}_test").render_as_string(
+    hide_password=False
+)
+_ADMIN_URL: str = _base_url.set(database="postgres").render_as_string(hide_password=False)
+
 
 @pytest.fixture(scope="session")
 def _schema() -> None:  # pyright: ignore[reportUnusedFunction]
-    command.upgrade(Config(str(ALEMBIC_INI)), "head")
+    admin_engine = create_engine(_ADMIN_URL, isolation_level="AUTOCOMMIT")
+    with admin_engine.connect() as conn:
+        exists = conn.execute(
+            text("SELECT 1 FROM pg_database WHERE datname = :name"),
+            {"name": f"{_db_name}_test"},
+        ).scalar()
+        if not exists:
+            conn.execute(text(f'CREATE DATABASE "{_db_name}_test"'))
+    admin_engine.dispose()
+
+    cfg = Config(str(ALEMBIC_INI))
+    cfg.set_main_option("sqlalchemy.url", TEST_DATABASE_URL)
+    command.upgrade(cfg, "head")
 
 
 @pytest_asyncio.fixture
 async def engine(_schema: None) -> AsyncIterator[AsyncEngine]:
-    eng = create_async_engine(get_settings().database_url)
+    eng = create_async_engine(TEST_DATABASE_URL)
     try:
         yield eng
     finally:
