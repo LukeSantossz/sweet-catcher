@@ -62,6 +62,12 @@ curl -X PUT http://localhost:8000/profile \
   -d '{"basics": {"full_name": "Ada Lovelace"}}'
 curl http://localhost:8000/profile            # current version
 curl http://localhost:8000/profile/versions   # version history
+
+# Configure global job-search criteria (FR #3):
+curl -X PUT http://localhost:8000/search-criteria \
+  -H 'content-type: application/json' \
+  -d '{"keywords": ["python", "fastapi"], "work_modes": ["remote"]}'
+curl http://localhost:8000/search-criteria    # current criteria
 ```
 
 Stop the stack when done:
@@ -92,12 +98,12 @@ SPEC.md     Current change specification
 
 ## Project Status
 
-In development — Phase 0 (project scaffolding) complete; Phase 1 (master profile API) in progress. The resume standard is defined in [docs/resume-standard.md](docs/resume-standard.md).
+In development — Phase 0 (scaffolding) and Phase 1 (master profile API) complete; Phase 2 (global job-search criteria) in progress. The resume standard is defined in [docs/resume-standard.md](docs/resume-standard.md).
 
 ## Known Issues & Limitations
 
-- The versioned master-profile API is live (Phase 1). Not yet implemented: document import/parsing, authentication, multi-profile support, and tailored-resume generation.
-- The worker, scheduler, and LLM client are deferred to later phases.
+- The versioned master-profile API (Phase 1) and global job-search criteria (Phase 2) are live. Not yet implemented: document import/parsing, authentication, multi-profile support, and tailored-resume generation.
+- Search criteria are stored but not yet consumed: job discovery, source connectors, the worker, the scheduler, and the LLM client are deferred to later phases.
 
 ## License
 
