@@ -6,6 +6,7 @@ from alembic import context
 from app.config import get_settings
 from app.db.base import Base
 from app.profile import models  # noqa: F401  (register tables on the metadata)
+from app.search import models as search_models  # noqa: F401  (register tables on the metadata)
 
 config = context.config
 if config.config_file_name is not None:
