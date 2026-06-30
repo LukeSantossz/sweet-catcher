@@ -1,7 +1,12 @@
 from app.jobs.connectors.mapping import (
+    as_dict,
+    as_dict_list,
+    clean_str,
+    coerce_id,
     coerce_salary_amount,
     map_contract_type,
     map_work_mode,
+    str_list,
     to_iso_date,
 )
 from app.jobs.schemas import ContractType
@@ -60,3 +65,35 @@ def test_coerce_salary_amount_rejects_bool_negative_and_non_number() -> None:
     assert coerce_salary_amount(float("inf")) is None
     assert coerce_salary_amount("80000") is None
     assert coerce_salary_amount(None) is None
+
+
+def test_to_iso_date_strips_surrounding_whitespace() -> None:
+    assert to_iso_date("  2026-06-26T14:55:18  ") == "2026-06-26"
+
+
+def test_as_dict_returns_empty_for_non_mapping() -> None:
+    assert as_dict({"a": 1}) == {"a": 1}
+    assert as_dict(None) == {}
+    assert as_dict([1, 2]) == {}
+
+
+def test_as_dict_list_keeps_only_dict_items() -> None:
+    assert as_dict_list([{"a": 1}, "x", 2, {"b": 2}]) == [{"a": 1}, {"b": 2}]
+    assert as_dict_list(None) == []
+
+
+def test_str_list_keeps_only_strings() -> None:
+    assert str_list(["a", 1, None, "b"]) == ["a", "b"]
+    assert str_list("not-a-list") == []
+
+
+def test_clean_str_strips_and_handles_non_str() -> None:
+    assert clean_str("  hi  ") == "hi"
+    assert clean_str(None) == ""
+    assert clean_str(123) == ""
+
+
+def test_coerce_id_handles_none_and_numbers() -> None:
+    assert coerce_id(555) == "555"
+    assert coerce_id("abc") == "abc"
+    assert coerce_id(None) == ""

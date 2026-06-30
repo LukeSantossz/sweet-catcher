@@ -42,10 +42,25 @@ def str_list(value: Any) -> list[str]:
     return [item for item in items if isinstance(item, str)]
 
 
+def clean_str(value: Any) -> str:
+    """Return a stripped string, or "" when the value is missing or not a string. Treats a JSON
+    ``null`` as missing rather than coercing it to the literal "None"."""
+    return value.strip() if isinstance(value, str) else ""
+
+
+def coerce_id(value: Any) -> str:
+    """Coerce a source identifier to a string, treating a missing value as an empty id rather
+    than the literal "None" (which would be a poor deduplication/persistence key)."""
+    return "" if value is None else str(value)
+
+
 def to_iso_date(value: Any) -> str | None:
     """Reduce an ISO-8601 date or datetime string to a plain `YYYY-MM-DD` date string. A
     timezone-aware timestamp is normalized to UTC first so the calendar date does not drift."""
-    if not isinstance(value, str) or not value.strip():
+    if not isinstance(value, str):
+        return None
+    value = value.strip()
+    if not value:
         return None
     try:
         parsed = datetime.fromisoformat(value)

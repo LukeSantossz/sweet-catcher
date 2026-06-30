@@ -4,6 +4,8 @@ from app.jobs.connectors.http import PoliteClient
 from app.jobs.connectors.mapping import (
     as_dict,
     as_dict_list,
+    clean_str,
+    coerce_id,
     map_contract_type,
     str_list,
     to_iso_date,
@@ -33,8 +35,8 @@ class RemotiveConnector:
 
     def _to_raw(self, job: dict[str, Any]) -> RawJob:
         payload: dict[str, Any] = {
-            "title": str(job.get("title", "")).strip(),
-            "company": str(job.get("company_name", "")).strip(),
+            "title": clean_str(job.get("title")),
+            "company": clean_str(job.get("company_name")),
             "url": job.get("url"),
             "description": job.get("description"),
             "location": job.get("candidate_required_location") or None,
@@ -44,4 +46,4 @@ class RemotiveConnector:
             "technologies": str_list(job.get("tags")),
             "source_raw": job,
         }
-        return RawJob(source=self.name, external_id=str(job.get("id", "")), payload=payload)
+        return RawJob(source=self.name, external_id=coerce_id(job.get("id")), payload=payload)
