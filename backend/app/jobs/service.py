@@ -54,10 +54,16 @@ class DiscoveryService:
     async def run(self) -> RunSummary:
         criteria = await self._load_criteria()
         summary = RunSummary()
+        # One index for the whole run so cross-posts from different sources are flagged too.
+        index = DuplicateIndex()
         for name in criteria.active_sources:
             connector = self._connectors.get(name)
-            if connector is not None:
-                summary.sources.append(await self._run_connector(connector, criteria))
+            if connector is None:
+                summary.sources.append(
+                    SourceResult(source=name, error="no connector registered for this source")
+                )
+                continue
+            summary.sources.append(await self._run_connector(connector, criteria, index))
         return summary
 
     async def _load_criteria(self) -> SearchCriteriaData:
@@ -67,7 +73,7 @@ class DiscoveryService:
         return SearchCriteriaData.model_validate(row.data)
 
     async def _run_connector(
-        self, connector: SourceConnector, criteria: SearchCriteriaData
+        self, connector: SourceConnector, criteria: SearchCriteriaData, index: DuplicateIndex
     ) -> SourceResult:
         result = SourceResult(source=connector.name)
         # Boundary: a source's fetch failure must not abort the run (FR #5).
@@ -84,15 +90,16 @@ class DiscoveryService:
                 jobs.append(normalize(raw))
             except Exception:
                 result.skipped += 1
-        await self._persist_batch(jobs, result)
+        await self._persist_batch(jobs, result, index)
         return result
 
-    async def _persist_batch(self, jobs: list[JobData], result: SourceResult) -> None:
+    async def _persist_batch(
+        self, jobs: list[JobData], result: SourceResult, index: DuplicateIndex
+    ) -> None:
         if not jobs:
             return
         existing = await self._load_existing(jobs)
         pending: dict[tuple[str, str], Job] = {}
-        index = DuplicateIndex()
         for job in jobs:
             if index.is_duplicate(job):
                 # Cross-posting duplicate: flagged, but still persisted (FR #8) — never dropped.

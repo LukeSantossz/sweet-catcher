@@ -110,3 +110,34 @@ async def test_flags_duplicate_without_dropping(db_session: AsyncSession) -> Non
     assert source.created == 2
     assert source.duplicates == 1
     assert await _count_jobs(db_session) == 2
+
+
+async def test_unknown_active_source_is_reported(db_session: AsyncSession) -> None:
+    await _set_active(db_session, "mock", "ghost")
+    summary = await DiscoveryService(db_session, [MockConnector([_raw("1")])]).run()
+    results = {result.source: result for result in summary.sources}
+    assert results["mock"].created == 1
+    assert results["ghost"].error is not None
+
+
+async def test_flags_duplicate_across_connectors(db_session: AsyncSession) -> None:
+    await _set_active(db_session, "a", "b")
+    shared = "https://x.example/jobs/shared"
+
+    class A:
+        name = "a"
+
+        async def fetch(self, criteria: SearchCriteriaData) -> list[RawJob]:
+            payload = {"title": "T", "company": "C", "url": shared}
+            return [RawJob(source="a", external_id="1", payload=payload)]
+
+    class B:
+        name = "b"
+
+        async def fetch(self, criteria: SearchCriteriaData) -> list[RawJob]:
+            payload = {"title": "T", "company": "C", "url": shared}
+            return [RawJob(source="b", external_id="2", payload=payload)]
+
+    summary = await DiscoveryService(db_session, [A(), B()]).run()
+    assert summary.created == 2
+    assert summary.duplicates == 1
