@@ -2,7 +2,17 @@ import uuid
 from datetime import date, datetime
 from typing import Any
 
-from sqlalchemy import Date, DateTime, Index, Integer, String, UniqueConstraint, func, text
+from sqlalchemy import (
+    CheckConstraint,
+    Date,
+    DateTime,
+    Index,
+    Integer,
+    String,
+    UniqueConstraint,
+    func,
+    text,
+)
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -13,6 +23,10 @@ class Job(Base):
     __tablename__ = "jobs"
     __table_args__ = (
         UniqueConstraint("source", "source_external_id"),
+        CheckConstraint(
+            "salary_min IS NULL OR salary_max IS NULL OR salary_max >= salary_min",
+            name="ck_jobs_salary_range",
+        ),
         Index("ix_jobs_canonical_url", "canonical_url"),
         Index("ix_jobs_description_hash", "description_hash"),
     )

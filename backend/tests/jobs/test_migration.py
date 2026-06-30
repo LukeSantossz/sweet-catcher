@@ -34,3 +34,13 @@ async def test_migration_jobs_non_null_columns_have_server_defaults(engine: Asyn
     assert defaults["languages"] is not None
     assert defaults["status"] is not None
     assert defaults["raw"] is not None
+
+
+def _check_constraint_names(connection: Connection, table: str) -> set[str]:
+    return {constraint["name"] for constraint in inspect(connection).get_check_constraints(table)}
+
+
+async def test_migration_jobs_has_salary_range_check(engine: AsyncEngine) -> None:
+    async with engine.connect() as connection:
+        names = await connection.run_sync(_check_constraint_names, "jobs")
+    assert "ck_jobs_salary_range" in names
