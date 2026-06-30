@@ -25,6 +25,6 @@ async def list_jobs(
     session: AsyncSession = Depends(get_session),  # noqa: B008
 ) -> list[JobSummary]:
     result = await session.execute(
-        select(Job).order_by(Job.first_seen_at.desc()).limit(limit).offset(offset)
+        select(Job).order_by(Job.first_seen_at.desc(), Job.id.desc()).limit(limit).offset(offset)
     )
     return [JobSummary.model_validate(row, from_attributes=True) for row in result.scalars()]
