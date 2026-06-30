@@ -29,6 +29,7 @@ A REST API backend (modular monolith) plus a reserved frontend, run locally via 
 | LLM provider abstraction | [docs/adr/0004-llm-provider-abstraction.md](docs/adr/0004-llm-provider-abstraction.md) |
 | Async persistence (SQLAlchemy + psycopg3) | [docs/adr/0005-async-persistence-sqlalchemy-psycopg3.md](docs/adr/0005-async-persistence-sqlalchemy-psycopg3.md) |
 | Master-profile versioning (JSONB snapshots) | [docs/adr/0006-master-profile-versioning-jsonb-snapshots.md](docs/adr/0006-master-profile-versioning-jsonb-snapshots.md) |
+| Job storage (normalized columns + raw JSONB) | [docs/adr/0007-job-storage-normalized-columns-raw-jsonb.md](docs/adr/0007-job-storage-normalized-columns-raw-jsonb.md) |
 
 ## Getting Started
 
@@ -66,8 +67,12 @@ curl http://localhost:8000/profile/versions   # version history
 # Configure global job-search criteria (FR #3):
 curl -X PUT http://localhost:8000/search-criteria \
   -H 'content-type: application/json' \
-  -d '{"keywords": ["python", "fastapi"], "work_modes": ["remote"]}'
+  -d '{"keywords": ["python", "fastapi"], "work_modes": ["remote"], "active_sources": ["mock"]}'
 curl http://localhost:8000/search-criteria    # current criteria
+
+# Run a discovery pass over the active sources (mock connector) and list jobs:
+curl -X POST http://localhost:8000/jobs/discover   # -> run summary (created/updated/duplicates)
+curl http://localhost:8000/jobs                     # discovered jobs
 ```
 
 Stop the stack when done:
@@ -98,12 +103,12 @@ SPEC.md     Current change specification
 
 ## Project Status
 
-In development — Phase 0 (scaffolding) and Phase 1 (master profile API) complete; Phase 2 (global job-search criteria) in progress. The resume standard is defined in [docs/resume-standard.md](docs/resume-standard.md).
+In development — Phase 0 (scaffolding) and Phase 1 (master profile API) complete; Phase 2 (job discovery) in progress: global job-search criteria and a job-collection core (mock source, normalization, deduplication) are live. The resume standard is defined in [docs/resume-standard.md](docs/resume-standard.md).
 
 ## Known Issues & Limitations
 
-- The versioned master-profile API (Phase 1) and global job-search criteria (Phase 2) are live. Not yet implemented: document import/parsing, authentication, multi-profile support, and tailored-resume generation.
-- Search criteria are stored but not yet consumed: job discovery, source connectors, the worker, the scheduler, and the LLM client are deferred to later phases.
+- Live: the versioned master-profile API (Phase 1), global job-search criteria, and a synchronous job-discovery core with a mock source connector, normalization, and deduplication (Phase 2). Not yet implemented: document import/parsing, authentication, multi-profile support, and tailored-resume generation.
+- Discovery runs only on demand against the mock connector: real source connectors, scheduled runs (the Dramatiq worker and APScheduler scheduler), fit analysis, and the LLM client are deferred to later phases.
 
 ## License
 
