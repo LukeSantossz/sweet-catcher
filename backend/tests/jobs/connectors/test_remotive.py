@@ -81,3 +81,27 @@ async def test_remotive_returns_empty_list_when_api_has_no_jobs() -> None:
     raws = await connector.fetch(SearchCriteriaData())
 
     assert raws == []
+
+
+async def test_remotive_maps_multiple_jobs_in_order() -> None:
+    payload: dict[str, Any] = {
+        "jobs": [
+            {"id": 1, "title": "A", "company_name": "X", "url": "https://x.test/1"},
+            {"id": 2, "title": "B", "company_name": "Y", "url": "https://y.test/2"},
+            {"id": 3, "title": "C", "company_name": "Z", "url": "https://z.test/3"},
+        ]
+    }
+    connector = RemotiveConnector(_client(payload))
+
+    raws = await connector.fetch(SearchCriteriaData())
+
+    assert [raw.external_id for raw in raws] == ["1", "2", "3"]
+
+
+async def test_remotive_requests_the_configured_limit() -> None:
+    capture: dict[str, str] = {}
+    connector = RemotiveConnector(_client(_SAMPLE, capture=capture), limit=25)
+
+    await connector.fetch(SearchCriteriaData())
+
+    assert "limit=25" in capture["url"]

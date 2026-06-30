@@ -26,6 +26,8 @@ class RemotiveConnector:
         self._limit = limit
 
     async def fetch(self, criteria: SearchCriteriaData) -> list[RawJob]:
+        # criteria is unused in V1: Remotive's default feed is fetched and source selection
+        # happens via SearchCriteria.active_sources (ADR 0008).
         data = await self._client.get_json(_BASE_URL, params={"limit": self._limit})
         return [self._to_raw(job) for job in as_dict_list(as_dict(data).get("jobs"))]
 
@@ -40,7 +42,6 @@ class RemotiveConnector:
             "contract_type": map_contract_type(job.get("job_type")),
             "posted_at": to_iso_date(job.get("publication_date")),
             "technologies": str_list(job.get("tags")),
-            "salary_raw": job.get("salary"),
             "source_raw": job,
         }
         return RawJob(source=self.name, external_id=str(job.get("id", "")), payload=payload)
