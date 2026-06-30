@@ -10,6 +10,8 @@ dependencies = [
     "sqlalchemy[asyncio]>=2.0",
     "alembic>=1.18.5",
     "psycopg[binary]>=3.2",
+    # async HTTP client for the source connectors; also backs starlette's TestClient
+    "httpx2>=2.5.0",
 ]
 
 [dependency-groups]
@@ -17,8 +19,6 @@ dev = [
     "pytest>=8.3",
     "ruff==0.15.20",
     "pyright>=1.1.380",
-    # starlette's TestClient requires httpx2 (plain httpx is deprecated for it)
-    "httpx2>=2.5.0",
     "pytest-asyncio>=1.4.0",
 ]
 
