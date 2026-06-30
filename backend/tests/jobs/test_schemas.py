@@ -73,3 +73,8 @@ def test_runsummary_aggregates_totals() -> None:
     assert summary.found == 4
     assert summary.created == 2
     assert summary.updated == 2
+
+
+def test_jobdata_rejects_transposed_salary() -> None:
+    with pytest.raises(ValidationError):
+        _job(salary_min=120000, salary_max=80000)
