@@ -1,8 +1,8 @@
 from datetime import date
 from enum import StrEnum
-from typing import Any
+from typing import Any, Self
 
-from pydantic import BaseModel, ConfigDict, Field, computed_field
+from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validator
 
 from app.profile.schemas import WorkMode
 
@@ -53,6 +53,36 @@ class JobData(_JobModel):
     status: JobStatus = JobStatus.open
     raw: dict[str, Any] = Field(default_factory=dict)
 
+    @model_validator(mode="after")
+    def _check_salary_range(self) -> Self:
+        if (
+            self.salary_min is not None
+            and self.salary_max is not None
+            and self.salary_max < self.salary_min
+        ):
+            raise ValueError("salary_max must not be less than salary_min")
+        return self
+
+
+class JobSummary(_JobModel):
+    """Lightweight view for the job list: omits the heavy `raw` payload and the
+    full description so listing does not ship the original source documents."""
+
+    source: str
+    source_external_id: str
+    title: str
+    company: str
+    url: str
+    location: str | None = None
+    work_mode: WorkMode | None = None
+    contract_type: ContractType | None = None
+    posted_at: date | None = None
+    salary_min: int | None = None
+    salary_max: int | None = None
+    salary_currency: str | None = None
+    technologies: list[str] = Field(default_factory=list)
+    status: JobStatus = JobStatus.open
+
 
 class SourceResult(BaseModel):
     source: str
@@ -60,6 +90,7 @@ class SourceResult(BaseModel):
     created: int = 0
     updated: int = 0
     duplicates: int = 0
+    skipped: int = 0
     error: str | None = None
 
 
@@ -85,3 +116,8 @@ class RunSummary(BaseModel):
     @property
     def duplicates(self) -> int:
         return sum(result.duplicates for result in self.sources)
+
+    @computed_field
+    @property
+    def skipped(self) -> int:
+        return sum(result.skipped for result in self.sources)
