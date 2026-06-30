@@ -18,6 +18,7 @@ async def test_list_jobs_returns_persisted(client: AsyncClient) -> None:
     jobs = response.json()
     assert len(jobs) >= 1
     assert all("title" in job for job in jobs)
+    assert all("raw" not in job for job in jobs)
 
 
 async def test_discover_with_no_active_sources_creates_nothing(client: AsyncClient) -> None:
@@ -25,3 +26,11 @@ async def test_discover_with_no_active_sources_creates_nothing(client: AsyncClie
     response = await client.post("/jobs/discover")
     assert response.status_code == 200
     assert response.json()["created"] == 0
+
+
+async def test_list_jobs_respects_limit(client: AsyncClient) -> None:
+    await client.put("/search-criteria", json={"active_sources": ["mock"]})
+    await client.post("/jobs/discover")  # mock yields two jobs
+    response = await client.get("/jobs", params={"limit": 1})
+    assert response.status_code == 200
+    assert len(response.json()) == 1
