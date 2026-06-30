@@ -6,27 +6,36 @@ def _normalize_text(text: str | None) -> str:
 
 
 def composite_key(job: JobData) -> str:
-    """A normalized (title, company, location) key used as a probable-duplicate signal."""
+    """A normalized (title, company, location) key — the probable-duplicate signal (FR #8)."""
     return "|".join(
         (_normalize_text(job.title), _normalize_text(job.company), _normalize_text(job.location))
     )
 
 
-def is_duplicate(a: JobData, b: JobData) -> bool:
-    """Exact-key duplicate: same canonical URL, same (source, external id), or same
-    description hash (FR #8)."""
-    if a.canonical_url and a.canonical_url == b.canonical_url:
-        return True
-    if a.source == b.source and a.source_external_id == b.source_external_id:
-        return True
-    if a.description_hash is not None and a.description_hash == b.description_hash:
-        return True
-    return False
+class DuplicateIndex:
+    """Accumulates the duplicate signals seen during a discovery run so cross-posting
+    duplicates can be flagged without being dropped (FR #8). Exact identity dedup on
+    (source, external id) is handled separately by persistence, not here.
 
+    A job counts as a duplicate of an earlier one when it shares a canonical URL, a
+    description hash, or a normalized (title, company, location) key.
+    """
 
-def is_probable_duplicate(a: JobData, b: JobData) -> bool:
-    """Probable duplicate: a matching normalized (title, company, location) without an
-    exact-key match (FR #8 confidence-threshold flag)."""
-    if is_duplicate(a, b):
-        return False
-    return composite_key(a) == composite_key(b)
+    def __init__(self) -> None:
+        self._canonical_urls: set[str] = set()
+        self._description_hashes: set[str] = set()
+        self._composites: set[str] = set()
+
+    def is_duplicate(self, job: JobData) -> bool:
+        if job.canonical_url and job.canonical_url in self._canonical_urls:
+            return True
+        if job.description_hash is not None and job.description_hash in self._description_hashes:
+            return True
+        return composite_key(job) in self._composites
+
+    def add(self, job: JobData) -> None:
+        if job.canonical_url:
+            self._canonical_urls.add(job.canonical_url)
+        if job.description_hash is not None:
+            self._description_hashes.add(job.description_hash)
+        self._composites.add(composite_key(job))

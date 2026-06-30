@@ -79,3 +79,34 @@ async def test_runs_only_active_sources(db_session: AsyncSession) -> None:
     summary = await DiscoveryService(db_session, [mock, OtherConnector()]).run()
     assert summary.created == 1
     assert [result.source for result in summary.sources] == ["mock"]
+
+
+async def test_isolates_malformed_payload(db_session: AsyncSession) -> None:
+    await _set_active(db_session, "mock")
+    good = _raw("1")
+    bad = RawJob(
+        source="mock",
+        external_id="bad",
+        payload={
+            "title": "X",
+            "company": "Y",
+            "url": "https://z.example/bad",
+            "work_mode": "on-site",
+        },
+    )
+    summary = await DiscoveryService(db_session, [MockConnector([good, bad])]).run()
+    source = summary.sources[0]
+    assert source.created == 1
+    assert source.skipped == 1
+    assert await _count_jobs(db_session) == 1
+
+
+async def test_flags_duplicate_without_dropping(db_session: AsyncSession) -> None:
+    await _set_active(db_session, "mock")
+    first = _raw("1", description="identical role")
+    second = _raw("2", description="identical role")
+    summary = await DiscoveryService(db_session, [MockConnector([first, second])]).run()
+    source = summary.sources[0]
+    assert source.created == 2
+    assert source.duplicates == 1
+    assert await _count_jobs(db_session) == 2
