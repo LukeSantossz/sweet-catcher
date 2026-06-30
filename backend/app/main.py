@@ -4,6 +4,7 @@ import sys
 from fastapi import FastAPI
 
 from app.api.health import router as health_router
+from app.jobs.router import router as jobs_router
 from app.profile.router import router as profile_router
 from app.search.router import router as search_router
 
@@ -19,6 +20,7 @@ def create_app() -> FastAPI:
     app.include_router(health_router)
     app.include_router(profile_router)
     app.include_router(search_router)
+    app.include_router(jobs_router)
     return app
 
 
