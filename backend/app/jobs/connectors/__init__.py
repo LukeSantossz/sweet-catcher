@@ -1,5 +1,7 @@
 from typing import Protocol
 
+from app.jobs.connectors.remote_rocketship import RemoteRocketshipConnector
+from app.jobs.connectors.remotive import RemotiveConnector
 from app.jobs.schemas import RawJob
 from app.search.schemas import SearchCriteriaData
 
@@ -55,5 +57,9 @@ def _sample_jobs() -> list[RawJob]:
 
 
 def default_connectors() -> list[SourceConnector]:
-    connectors: list[SourceConnector] = [MockConnector()]
+    connectors: list[SourceConnector] = [
+        MockConnector(),
+        RemotiveConnector(),
+        RemoteRocketshipConnector(),
+    ]
     return connectors
