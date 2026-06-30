@@ -36,7 +36,7 @@ async def test_migration_jobs_non_null_columns_have_server_defaults(engine: Asyn
     assert defaults["raw"] is not None
 
 
-def _check_constraint_names(connection: Connection, table: str) -> set[str]:
+def _check_constraint_names(connection: Connection, table: str) -> set[str | None]:
     return {constraint["name"] for constraint in inspect(connection).get_check_constraints(table)}
 
 
