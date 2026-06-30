@@ -107,3 +107,86 @@ async def test_remote_rocketship_respects_page_cap() -> None:
     await connector.fetch(SearchCriteriaData())
 
     assert len(calls) == 2  # capped at max_pages even though every page still returns jobs
+
+
+def _paged_client(
+    pages: dict[str, list[dict[str, Any]]], *, seen: list[str] | None = None
+) -> PoliteClient:
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        page = request.url.params.get("page") or ""
+        if seen is not None:
+            seen.append(page)
+        return httpx2.Response(200, html=_html(pages.get(page, [])))
+
+    return PoliteClient(transport=httpx2.MockTransport(handler), min_interval=0.0)
+
+
+async def test_remote_rocketship_stops_on_first_empty_page() -> None:
+    seen: list[str] = []
+    connector = RemoteRocketshipConnector(_paged_client({"1": [_JOB]}, seen=seen), max_pages=3)
+
+    raws = await connector.fetch(SearchCriteriaData())
+
+    assert len(raws) == 1
+    assert seen == ["1", "2"]  # fetched the empty page 2, then stopped before page 3
+
+
+async def test_remote_rocketship_accumulates_jobs_across_pages() -> None:
+    pages = {
+        "1": [{**_JOB, "id": 1}, {**_JOB, "id": 2}],
+        "2": [{**_JOB, "id": 3}, {**_JOB, "id": 4}],
+    }
+    connector = RemoteRocketshipConnector(_paged_client(pages), max_pages=2)
+
+    raws = await connector.fetch(SearchCriteriaData())
+
+    assert [raw.external_id for raw in raws] == ["1", "2", "3", "4"]
+
+
+async def test_remote_rocketship_emits_payload_normalize_rejects_when_title_missing() -> None:
+    job = {
+        key: value for key, value in _JOB.items() if key not in ("roleTitle", "categorizedJobTitle")
+    }
+    connector = RemoteRocketshipConnector(_client(_html([job])))
+
+    raw = (await connector.fetch(SearchCriteriaData()))[0]
+
+    assert raw.payload["title"] == ""
+    with pytest.raises(ValueError):
+        normalize(raw)
+
+
+async def test_remote_rocketship_coerces_float_salary() -> None:
+    job = {**_JOB, "salaryRange": {"min": 150000.0, "max": 160000.0, "currencyCode": "USD"}}
+    connector = RemoteRocketshipConnector(_client(_html([job])))
+
+    payload = (await connector.fetch(SearchCriteriaData()))[0].payload
+
+    assert payload["salary_min"] == 150000
+    assert payload["salary_max"] == 160000
+    assert payload["salary_currency"] == "USD"
+
+
+async def test_remote_rocketship_handles_partial_salary_range() -> None:
+    job = {**_JOB, "salaryRange": {"min": 150000}}
+    connector = RemoteRocketshipConnector(_client(_html([job])))
+
+    payload = (await connector.fetch(SearchCriteriaData()))[0].payload
+
+    assert payload["salary_min"] == 150000
+    assert "salary_max" not in payload
+    assert "salary_currency" not in payload
+
+
+async def test_remote_rocketship_requests_sorted_listing_pages() -> None:
+    seen: dict[str, str] = {}
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        seen["url"] = str(request.url)
+        return httpx2.Response(200, html=_html([_JOB]))
+
+    client = PoliteClient(transport=httpx2.MockTransport(handler), min_interval=0.0)
+    await RemoteRocketshipConnector(client).fetch(SearchCriteriaData())
+
+    assert "sort=DateAdded" in seen["url"]
+    assert "page=1" in seen["url"]
