@@ -55,7 +55,8 @@ scheduler yet. A FastAPI router exposes a manual run trigger and a paginated job
     description, location, work_mode, contract_type, employment dates, salary range and
     currency, technologies, languages, status, plus the `raw` payload), the `RawJob` DTO
     (source name, external id, payload), enums `ContractType` and `JobStatus`, and the
-    `RunSummary` DTO (per-source counts: found, created, updated, duplicates, errors).
+    `RunSummary` DTO whose per-source `SourceResult` carries the counts (found, created,
+    updated, duplicates, skipped) plus an optional connector-level `error`.
     `WorkMode` is reused from `app/profile/schemas.py`.
   - `app/jobs/models.py`: SQLAlchemy ORM `Job` — normalized columns for the queryable and
     dedup fields, a `raw` JSONB column, timestamps (`first_seen_at`, `last_seen_at`), a
@@ -84,7 +85,7 @@ scheduler yet. A FastAPI router exposes a manual run trigger and a paginated job
     router, and migration; reusing the existing `tests/conftest.py`.
   - ADR `0007` (job storage model: normalized columns plus a raw JSONB payload), promoted at
     the Gate.
-  - README note on the discovery endpoint, in the `github.md` section order.
+  - README note on the discovery endpoint, following the README's section order.
 - Does NOT include:
   - The Dramatiq worker, the APScheduler scheduler, scheduled/off-request execution
     (FR #4 scheduling), and enqueueing fit analysis. The run is synchronous and trigger-only.
