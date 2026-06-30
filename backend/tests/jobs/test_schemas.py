@@ -29,12 +29,14 @@ def _job(**over: Any) -> JobData:
 
 def test_jobdata_requires_canonical_url() -> None:
     with pytest.raises(ValidationError):
-        JobData(
-            source="mock",
-            source_external_id="1",
-            title="x",
-            company="y",
-            url="https://acme.example/jobs/1",
+        JobData.model_validate(
+            {
+                "source": "mock",
+                "source_external_id": "1",
+                "title": "x",
+                "company": "y",
+                "url": "https://acme.example/jobs/1",
+            }
         )
 
 
