@@ -251,3 +251,27 @@ async def test_polite_client_raises_when_response_exceeds_byte_cap() -> None:
 
     with pytest.raises(ValueError):
         await client.get_text("https://example.test/x")
+
+
+async def test_polite_client_throttles_each_retry() -> None:
+    calls = {"n": 0}
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        calls["n"] += 1
+        return httpx2.Response(503 if calls["n"] == 1 else 200, text="ok")
+
+    def frozen_clock() -> float:
+        return 1000.0
+
+    sleeps, sleep = _silent_sleep_spy()
+    client = PoliteClient(
+        transport=httpx2.MockTransport(handler),
+        min_interval=1.0,
+        backoff_base=0.5,
+        sleep=sleep,
+        clock=frozen_clock,
+    )
+
+    assert await client.get_text("https://example.test/x") == "ok"
+    assert calls["n"] == 2
+    assert sleeps == [0.5, 1.0]  # backoff after the 503, then the per-host throttle on the retry
