@@ -2,7 +2,7 @@ import uuid
 from datetime import date, datetime
 from typing import Any
 
-from sqlalchemy import Date, DateTime, Index, Integer, String, UniqueConstraint, func
+from sqlalchemy import Date, DateTime, Index, Integer, String, UniqueConstraint, func, text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -33,10 +33,16 @@ class Job(Base):
     salary_min: Mapped[int | None] = mapped_column(Integer, nullable=True)
     salary_max: Mapped[int | None] = mapped_column(Integer, nullable=True)
     salary_currency: Mapped[str | None] = mapped_column(String, nullable=True)
-    technologies: Mapped[list[str]] = mapped_column(JSONB, default=list)
-    languages: Mapped[list[str]] = mapped_column(JSONB, default=list)
-    status: Mapped[str] = mapped_column(String, default="open")
-    raw: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
+    technologies: Mapped[list[str]] = mapped_column(
+        JSONB, default=list, server_default=text("'[]'::jsonb")
+    )
+    languages: Mapped[list[str]] = mapped_column(
+        JSONB, default=list, server_default=text("'[]'::jsonb")
+    )
+    status: Mapped[str] = mapped_column(String, default="open", server_default="open")
+    raw: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, default=dict, server_default=text("'{}'::jsonb")
+    )
     first_seen_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
