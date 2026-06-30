@@ -37,6 +37,14 @@ def _html(jobs: list[dict[str, Any]]) -> str:
     )
 
 
+def _html_reordered_attrs(jobs: list[dict[str, Any]]) -> str:
+    next_data = {"props": {"pageProps": {"initialJobOpenings": jobs}}}
+    return (
+        '<html><body><script type="application/json" id="__NEXT_DATA__">'
+        f"{json.dumps(next_data)}</script></body></html>"
+    )
+
+
 def _client(html: str, *, calls: list[int] | None = None) -> PoliteClient:
     def handler(request: httpx2.Request) -> httpx2.Response:
         if calls is not None:
@@ -190,3 +198,12 @@ async def test_remote_rocketship_requests_sorted_listing_pages() -> None:
 
     assert "sort=DateAdded" in seen["url"]
     assert "page=1" in seen["url"]
+
+
+async def test_remote_rocketship_extracts_with_reordered_script_attrs() -> None:
+    connector = RemoteRocketshipConnector(_client(_html_reordered_attrs([_JOB])))
+
+    raws = await connector.fetch(SearchCriteriaData())
+
+    assert len(raws) == 1
+    assert raws[0].external_id == "19445192"

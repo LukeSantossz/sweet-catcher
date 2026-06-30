@@ -1,10 +1,13 @@
 import json
+from html.parser import HTMLParser
 from typing import Any
 
 from app.jobs.connectors.http import PoliteClient
 from app.jobs.connectors.mapping import (
     as_dict,
     as_dict_list,
+    clean_str,
+    coerce_id,
     coerce_salary_amount,
     map_contract_type,
     map_work_mode,
@@ -15,9 +18,33 @@ from app.jobs.schemas import RawJob
 from app.search.schemas import SearchCriteriaData
 
 _BASE_URL = "https://www.remoterocketship.com/"
-# Remote Rocketship is a Next.js Pages Router app; the full listing is embedded as JSON in the
-# standard __NEXT_DATA__ script tag, a far more stable extraction target than the rendered DOM.
-_NEXT_DATA_MARKER = '<script id="__NEXT_DATA__"'
+
+
+class _NextDataParser(HTMLParser):
+    """Captures the text content of the Next.js ``<script id="__NEXT_DATA__">`` tag regardless of
+    attribute order. Script content is CDATA to HTMLParser, so the embedded JSON is returned
+    verbatim — a more stable extraction target than the rendered DOM."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._capturing = False
+        self._chunks: list[str] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag == "script" and dict(attrs).get("id") == "__NEXT_DATA__":
+            self._capturing = True
+
+    def handle_data(self, data: str) -> None:
+        if self._capturing:
+            self._chunks.append(data)
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag == "script":
+            self._capturing = False
+
+    @property
+    def payload(self) -> str:
+        return "".join(self._chunks)
 
 
 class RemoteRocketshipConnector:
@@ -45,25 +72,19 @@ class RemoteRocketshipConnector:
         return raws
 
     def _extract_jobs(self, html: str) -> list[dict[str, Any]]:
-        # Locate the script via plain string search (linear, no backtracking regex) and slice its
-        # JSON body out to the next closing tag.
-        start = html.find(_NEXT_DATA_MARKER)
-        if start == -1:
+        parser = _NextDataParser()
+        parser.feed(html)
+        if not parser.payload:
             raise ValueError("Remote Rocketship page is missing the __NEXT_DATA__ payload")
-        body_start = html.find(">", start)
-        body_end = html.find("</script>", body_start) if body_start != -1 else -1
-        if body_start == -1 or body_end == -1:
-            raise ValueError("Remote Rocketship __NEXT_DATA__ script is malformed")
-        data = json.loads(html[body_start + 1 : body_end])
+        data = json.loads(parser.payload)
         page_props = as_dict(as_dict(as_dict(data).get("props")).get("pageProps"))
         return as_dict_list(page_props.get("initialJobOpenings"))
 
     def _to_raw(self, job: dict[str, Any]) -> RawJob:
         company = as_dict(job.get("company"))
-        title = job.get("roleTitle") or job.get("categorizedJobTitle") or ""
         payload: dict[str, Any] = {
-            "title": str(title).strip(),
-            "company": str(company.get("name", "")).strip(),
+            "title": clean_str(job.get("roleTitle") or job.get("categorizedJobTitle")),
+            "company": clean_str(company.get("name")),
             "url": job.get("url"),
             "description": job.get("jobDescriptionSummary"),
             "location": job.get("location"),
@@ -75,7 +96,7 @@ class RemoteRocketshipConnector:
             "source_raw": job,
         }
         self._add_salary(payload, as_dict(job.get("salaryRange")))
-        return RawJob(source=self.name, external_id=str(job.get("id", "")), payload=payload)
+        return RawJob(source=self.name, external_id=coerce_id(job.get("id")), payload=payload)
 
     @staticmethod
     def _add_salary(payload: dict[str, Any], salary: dict[str, Any]) -> None:
