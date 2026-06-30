@@ -60,7 +60,7 @@ class PoliteClient:
         return json.loads(await self._fetch("GET", url, params=params))
 
     async def _fetch(self, method: str, url: str, *, params: dict[str, Any] | None) -> bytes:
-        await self._respect_rate_limit(urlsplit(url).netloc)
+        host = urlsplit(url).netloc
         async with httpx2.AsyncClient(
             transport=self._transport,
             timeout=self._timeout,
@@ -69,6 +69,7 @@ class PoliteClient:
         ) as client:
             attempt = 0
             while True:
+                await self._respect_rate_limit(host)
                 try:
                     async with client.stream(method, url, params=params) as response:
                         retryable = response.status_code in _RETRYABLE_STATUS
