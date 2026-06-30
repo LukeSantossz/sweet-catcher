@@ -11,7 +11,7 @@ def _job(external_id: str, **payload: Any) -> Any:
 
 def test_index_flags_repeated_canonical_url() -> None:
     index = DuplicateIndex()
-    index.add(_job("1", title="A", company="Acme", url="https://x.example/jobs/1?utm=a"))
+    index.add(_job("1", title="A", company="Acme", url="https://x.example/jobs/1?utm_source=a"))
     later = _job("2", title="B", company="Beta", url="https://x.example/jobs/1")
     assert index.is_duplicate(later)
 
