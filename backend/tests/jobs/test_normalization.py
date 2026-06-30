@@ -1,3 +1,5 @@
+import pytest
+
 from app.jobs.normalization import canonical_url, description_hash, normalize
 from app.jobs.schemas import RawJob
 
@@ -43,3 +45,15 @@ def test_description_hash_ignores_whitespace_and_case() -> None:
 def test_description_hash_none_for_empty() -> None:
     assert description_hash(None) is None
     assert description_hash("") is None
+
+
+def test_canonical_url_keeps_identity_query_params() -> None:
+    assert canonical_url("https://acme.example/jobs?id=1") != canonical_url(
+        "https://acme.example/jobs?id=2"
+    )
+
+
+def test_normalize_rejects_missing_required_field() -> None:
+    raw = RawJob(source="mock", external_id="1", payload={"company": "Acme", "url": "https://x/1"})
+    with pytest.raises(ValueError):
+        normalize(raw)
