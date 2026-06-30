@@ -30,6 +30,7 @@ A REST API backend (modular monolith) plus a reserved frontend, run locally via 
 | Async persistence (SQLAlchemy + psycopg3) | [docs/adr/0005-async-persistence-sqlalchemy-psycopg3.md](docs/adr/0005-async-persistence-sqlalchemy-psycopg3.md) |
 | Master-profile versioning (JSONB snapshots) | [docs/adr/0006-master-profile-versioning-jsonb-snapshots.md](docs/adr/0006-master-profile-versioning-jsonb-snapshots.md) |
 | Job storage (normalized columns + raw JSONB) | [docs/adr/0007-job-storage-normalized-columns-raw-jsonb.md](docs/adr/0007-job-storage-normalized-columns-raw-jsonb.md) |
+| Multi-source ingestion (APIs + polite scraping) | [docs/adr/0008-multi-source-ingestion-api-and-scraping.md](docs/adr/0008-multi-source-ingestion-api-and-scraping.md) |
 
 ## Getting Started
 
@@ -64,13 +65,14 @@ curl -X PUT http://localhost:8000/profile \
 curl http://localhost:8000/profile            # current version
 curl http://localhost:8000/profile/versions   # version history
 
-# Configure global job-search criteria (FR #3):
+# Configure global job-search criteria (FR #3); active_sources selects the connectors
+# ("remotive", "remote_rocketship", and the deterministic "mock"):
 curl -X PUT http://localhost:8000/search-criteria \
   -H 'content-type: application/json' \
-  -d '{"keywords": ["python", "fastapi"], "work_modes": ["remote"], "active_sources": ["mock"]}'
+  -d '{"keywords": ["python"], "work_modes": ["remote"], "active_sources": ["remotive", "remote_rocketship"]}'
 curl http://localhost:8000/search-criteria    # current criteria
 
-# Run a discovery pass over the active sources (mock connector) and list jobs:
+# Run a discovery pass over the active sources (real connectors) and list jobs:
 curl -X POST http://localhost:8000/jobs/discover   # -> run summary (created/updated/duplicates)
 curl http://localhost:8000/jobs                     # discovered jobs
 ```
@@ -103,12 +105,12 @@ SPEC.md     Current change specification
 
 ## Project Status
 
-In development — Phase 0 (scaffolding) and Phase 1 (master profile API) complete; Phase 2 (job discovery) in progress: global job-search criteria and a job-collection core (mock source, normalization, deduplication) are live. The resume standard is defined in [docs/resume-standard.md](docs/resume-standard.md).
+In development — Phase 0 (scaffolding) and Phase 1 (master profile API) complete; Phase 2 (job discovery) in progress: global job-search criteria and a job-collection core (normalization, deduplication) are live, now with two real source connectors — the Remotive JSON API and Remote Rocketship (polite web scraping) — alongside the mock source. The resume standard is defined in [docs/resume-standard.md](docs/resume-standard.md).
 
 ## Known Issues & Limitations
 
-- Live: the versioned master-profile API (Phase 1), global job-search criteria, and a synchronous job-discovery core with a mock source connector, normalization, and deduplication (Phase 2). Not yet implemented: document import/parsing, authentication, multi-profile support, and tailored-resume generation.
-- Discovery runs only on demand against the mock connector: real source connectors, scheduled runs (the Dramatiq worker and APScheduler scheduler), fit analysis, and the LLM client are deferred to later phases.
+- Live: the versioned master-profile API (Phase 1), global job-search criteria, and a synchronous job-discovery core with normalization and deduplication (Phase 2), driven by two real source connectors — the Remotive JSON API and Remote Rocketship (web scraping) — plus the mock source. Not yet implemented: document import/parsing, authentication, multi-profile support, and tailored-resume generation.
+- Discovery runs only on demand: more sources (Seek NZ, LinkedIn), scheduled runs (the Dramatiq worker and APScheduler scheduler), fit analysis, and the LLM client are deferred to later phases. Scraping is politeness-first and best-effort — it treats robots.txt as advisory and degrades per source on failure (ADR 0008).
 
 ## License
 
