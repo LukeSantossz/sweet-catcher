@@ -3,7 +3,8 @@
 These centralise the JSON boundary (typing-safe coercion of `Any` values) and the enum mappings
 reused by every connector, so individual connectors stay small."""
 
-from datetime import datetime
+import math
+from datetime import UTC, datetime
 from typing import Any, cast
 
 from app.jobs.schemas import ContractType
@@ -42,13 +43,29 @@ def str_list(value: Any) -> list[str]:
 
 
 def to_iso_date(value: Any) -> str | None:
-    """Reduce an ISO-8601 date or datetime string to a plain `YYYY-MM-DD` date string."""
+    """Reduce an ISO-8601 date or datetime string to a plain `YYYY-MM-DD` date string. A
+    timezone-aware timestamp is normalized to UTC first so the calendar date does not drift."""
     if not isinstance(value, str) or not value.strip():
         return None
     try:
-        return datetime.fromisoformat(value).date().isoformat()
+        parsed = datetime.fromisoformat(value)
     except ValueError:
         return None
+    if parsed.tzinfo is not None:
+        parsed = parsed.astimezone(UTC)
+    return parsed.date().isoformat()
+
+
+def coerce_salary_amount(value: Any) -> int | None:
+    """Coerce a source salary amount to a non-negative int. Accepts ints and finite floats,
+    but rejects bools (a bool is an int subclass), non-numbers, and negatives so a malformed
+    amount is dropped rather than crashing JobData's ``ge=0`` validation."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    if isinstance(value, float) and not math.isfinite(value):
+        return None
+    amount = int(value)
+    return amount if amount >= 0 else None
 
 
 def map_contract_type(value: Any) -> str | None:
