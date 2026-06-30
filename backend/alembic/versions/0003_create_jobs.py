@@ -70,6 +70,10 @@ def upgrade() -> None:
         ),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("source", "source_external_id"),
+        sa.CheckConstraint(
+            "salary_min IS NULL OR salary_max IS NULL OR salary_max >= salary_min",
+            name="ck_jobs_salary_range",
+        ),
     )
     op.create_index("ix_jobs_canonical_url", "jobs", ["canonical_url"])
     op.create_index("ix_jobs_description_hash", "jobs", ["description_hash"])
