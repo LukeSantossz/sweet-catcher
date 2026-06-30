@@ -34,8 +34,12 @@ def test_not_duplicate_when_all_keys_differ() -> None:
 
 
 def test_probable_duplicate_on_title_company_location() -> None:
-    a = _job("1", title="Backend Engineer", company="Acme", location="Remote", url="https://x.example/a")
-    b = _job("2", title="backend engineer", company="acme", location="remote", url="https://y.example/b")
+    a = _job(
+        "1", title="Backend Engineer", company="Acme", location="Remote", url="https://x.example/a"
+    )
+    b = _job(
+        "2", title="backend engineer", company="acme", location="remote", url="https://y.example/b"
+    )
     assert not is_duplicate(a, b)
     assert is_probable_duplicate(a, b)
     assert composite_key(a) == composite_key(b)
