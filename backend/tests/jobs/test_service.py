@@ -1,9 +1,12 @@
 from typing import Any
 
+import httpx2
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.jobs.connectors import MockConnector
+from app.jobs.connectors.http import PoliteClient
+from app.jobs.connectors.remotive import RemotiveConnector
 from app.jobs.models import Job
 from app.jobs.schemas import RawJob
 from app.jobs.service import DiscoveryService
@@ -141,3 +144,33 @@ async def test_flags_duplicate_across_connectors(db_session: AsyncSession) -> No
     summary = await DiscoveryService(db_session, [A(), B()]).run()
     assert summary.created == 2
     assert summary.duplicates == 1
+
+
+async def test_run_persists_jobs_from_remotive_connector(db_session: AsyncSession) -> None:
+    await _set_active(db_session, "remotive")
+    payload: dict[str, Any] = {
+        "jobs": [
+            {
+                "id": 555,
+                "title": "Backend Engineer",
+                "company_name": "Acme",
+                "url": "https://remotive.com/remote-jobs/dev/backend-555",
+                "job_type": "full_time",
+                "publication_date": "2026-06-20T00:00:00",
+                "candidate_required_location": "Worldwide",
+                "tags": ["python"],
+                "description": "Build APIs.",
+            }
+        ]
+    }
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        return httpx2.Response(200, json=payload)
+
+    client = PoliteClient(transport=httpx2.MockTransport(handler), min_interval=0.0)
+    summary = await DiscoveryService(db_session, [RemotiveConnector(client)]).run()
+
+    assert summary.created == 1
+    assert await _count_jobs(db_session) == 1
+    results = {result.source: result for result in summary.sources}
+    assert results["remotive"].found == 1
