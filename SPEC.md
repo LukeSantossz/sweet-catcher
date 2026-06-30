@@ -14,13 +14,18 @@ sources whose errors are classified and isolated so one failing source cannot ab
 a deterministic `MockConnector` provides raw payloads for V1. Normalization maps a
 connector's raw payload to a `JobData` DTO carrying only source-derived fields (FR #7);
 analysis-derived fields (inferred seniority, extracted requirements — FR #9/#10) are left to
-the later analysis phase. Deduplication (FR #8) keys on canonical URL, the `(source,
-external_id)` pair, and a normalized description hash, with a normalized `(title, company,
-location)` composite recorded as a probable-duplicate signal. A `DiscoveryService.run()`
-loads the active `SearchCriteria`, invokes the connectors named in `active_sources`,
-normalizes, deduplicates against existing and in-batch jobs, inserts new jobs, updates
-existing ones, and returns a run summary — **synchronously**, with no worker or scheduler
-yet. A FastAPI router exposes a manual run trigger and a job list.
+the later analysis phase. Persistence deduplication uses the unambiguous **`(source, source_external_id)` identity**
+(the table's unique key): a matching row is updated in place — its identity columns are never
+overwritten — otherwise the job is inserted. Cross-posting duplicate **signals** (canonical
+URL, description hash, and a normalized `(title, company, location)` composite) are tracked by
+a `DuplicateIndex` and **counted, never dropped** (FR #8). A `DiscoveryService.run()` loads the
+active `SearchCriteria`, invokes the connectors named in `active_sources`, and isolates
+failures at two boundaries — a source's `fetch()` and each job's `normalize()`/persist — so
+one bad source or one malformed payload cannot abort the run (FR #5). It loads the batch's
+existing rows in one query, inserts or updates, flushes once, and returns a per-source run
+summary (found, created, updated, duplicates, skipped) — **synchronously**, with no worker or
+scheduler yet. A FastAPI router exposes a manual run trigger and a paginated job list (a
+`JobSummary` view that omits the heavy `raw` payload).
 
 ## Alternatives Considered
 - **JSONB-snapshot storage for jobs (like profile/criteria):** rejected — jobs must be
@@ -61,15 +66,16 @@ yet. A FastAPI router exposes a manual run trigger and a job list.
     returning deterministic raw payloads.
   - `app/jobs/normalization.py`: `normalize(raw: RawJob) -> JobData`, including
     `canonical_url` derivation and `description_hash` computation.
-  - `app/jobs/dedup.py`: dedup-key computation and matching (canonical URL,
-    `(source, external_id)`, description hash; normalized `(title, company, location)`
-    composite as the probable-duplicate signal).
+  - `app/jobs/dedup.py`: `composite_key` and a `DuplicateIndex` that flags cross-posting
+    duplicate signals (canonical URL, description hash, composite) non-destructively.
   - `app/jobs/service.py`: `DiscoveryService` — `run()` loads the active `SearchCriteria`,
-    invokes each connector named in `active_sources`, normalizes and deduplicates, inserts
-    new jobs and updates existing ones (`last_seen_at`), isolates and records per-source
-    errors, and returns a `RunSummary`.
+    invokes each connector named in `active_sources`, isolates failures per source and per job,
+    persists by `(source, source_external_id)` identity (updating mutable fields only, never the
+    identity), flags duplicates non-destructively, loads existing rows in one batch query and
+    flushes once, and returns a `RunSummary` (found, created, updated, duplicates, skipped).
   - `app/jobs/router.py`: router under `/jobs` — `POST /jobs/discover` (run synchronously,
-    return the `RunSummary`) and `GET /jobs` (list persisted jobs); wired into `create_app()`.
+    return the `RunSummary`) and `GET /jobs` (paginated `JobSummary` list omitting `raw`, with
+    `limit`/`offset`); wired into `create_app()`.
   - Alembic migration `0003_create_jobs` (down-revision `0002_create_search_criteria`),
     creating the `jobs` table with the unique constraint and indexes above; registered on
     `Base.metadata` via `alembic/env.py`.
@@ -86,7 +92,8 @@ yet. A FastAPI router exposes a manual run trigger and a job list.
   - The manual single-job add endpoint (FR #6), deferred to a later slice.
   - Fit analysis, requirement extraction, seniority inference, scoring, and any
     analysis-derived Job fields (FR #9–15).
-  - Advanced filtering, pagination, market analytics, and the dashboard (FR #24–27).
+  - Advanced filtering, market analytics, and the dashboard (FR #24–27); the job list exposes
+    only basic `limit`/`offset`.
   - Fuzzy/similarity-scored deduplication; pgvector or embeddings.
   - Authentication, authorization, and multi-user scoping.
 
@@ -95,26 +102,32 @@ yet. A FastAPI router exposes a manual run trigger and a job list.
   expected title, company, source, url, and a populated `description_hash`.
 - normalize_derives_canonical_url: a URL with tracking query parameters normalizes to a
   stable `canonical_url` (the same posting from two URLs yields the same canonical form).
-- dedup_matches_on_canonical_url: two raw jobs with the same canonical URL are detected as
-  duplicates.
-- dedup_matches_on_source_external_id: two raw jobs with the same `(source, external_id)`
-  are detected as duplicates.
-- dedup_matches_on_description_hash: two raw jobs with identical descriptions are detected
-  as duplicates.
-- dedup_flags_probable_duplicate_on_title_company_location: jobs sharing a normalized
-  `(title, company, location)` but no exact key are flagged as probable duplicates.
-- service_persists_new_jobs: a discovery run over a mock source with two new postings
-  inserts two `jobs` rows and reports `created == 2`.
-- service_rerun_is_idempotent: running discovery twice over the same mock payloads creates no
+- normalize_derives_canonical_url and description_hash: a URL with tracking parameters yields
+  a stable `canonical_url`, and whitespace/case differences yield the same `description_hash`.
+- dedup_index_flags_repeated_canonical_url / description_hash / composite: the `DuplicateIndex`
+  flags a later job that shares a canonical URL, a description hash, or a normalized
+  `(title, company, location)` with an earlier one — non-destructively (the job is not dropped).
+- schema_rejects_transposed_salary: a `JobData` with `salary_max` below `salary_min` fails
+  validation.
+- service_persists_new_jobs: a run over a mock source with two new postings inserts two `jobs`
+  rows and reports `created == 2`.
+- service_rerun_is_idempotent: running discovery twice over the same payloads creates no
   duplicate rows; the second run reports `created == 0` and `updated == 2`.
-- service_isolates_connector_errors: when one of two active connectors raises, the other's
-  jobs are still persisted and the failure is recorded in the summary's per-source errors.
+- service_flags_duplicate_without_dropping: two distinct `(source, external_id)` postings that
+  share a description are both persisted (`created == 2`) and the second is counted in
+  `duplicates` — never dropped.
+- service_isolates_connector_errors: when an active connector's `fetch()` raises, the other
+  connectors' jobs are still persisted and the failure is recorded in its `SourceResult.error`.
+- service_isolates_malformed_payload: a payload that fails to normalize is counted in
+  `skipped`; the rest of the batch is still persisted, and the run does not abort.
 - service_runs_only_active_sources: a connector whose name is absent from
   `criteria.active_sources` is not invoked.
 - api_discover_returns_summary: `POST /jobs/discover` returns 200 with the run summary counts.
-- api_list_jobs_returns_persisted: after a run, `GET /jobs` returns the persisted jobs.
-- migration_creates_jobs_table: `alembic upgrade head` creates the `jobs` table with the
-  unique `(source, source_external_id)` constraint.
+- api_list_jobs_excludes_raw_and_paginates: `GET /jobs` returns `JobSummary` items that omit
+  the `raw` payload, and honours the `limit` query parameter.
+- migration_creates_jobs_table: `alembic upgrade head` creates the `jobs` table with the unique
+  `(source, source_external_id)` constraint, and its NOT NULL JSONB/status columns carry server
+  defaults.
 - quality_gates_pass: `ruff check`, `ruff format --check`, `pyright` (strict), and `pytest`
   all pass in `backend/`.
 
